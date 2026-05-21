@@ -1,3 +1,47 @@
+# Build outputs
 bin/
 obj/
+out/
+
+# Visual Studio / Rider
 .vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs
+*.log
+logs/
+
+# Cache do .NET
+.nuget/
+*.lock.json
+
+# Configuracao local de testes
+TestResults/
+[Tt]est[Rr]esult*/
+*.coverage
+*.coveragexml
+
+# Visual Studio Code
+.vscode/
+
+# Mac/Linux
+.DS_Store
+*.swp
+
+# Firebase credentials
+serviceAccountKey.json
+**/serviceAccountKey.json
+
+# Local appsettings com segredos
+appsettings.Development.json
+**/appsettings.Development.json
+appsettings.Test.json
+**/appsettings.Test.json
+
+# Backup
+*.bak
+*.orig
