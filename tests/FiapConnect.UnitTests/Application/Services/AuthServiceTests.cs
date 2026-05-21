@@ -85,7 +85,7 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task LoginAsync_QuandoRmMenorQue5Digitos_LancaRegraDeNegocioException()
+    public async Task LoginAsync_QuandoRmMenorQue7Caracteres_LancaRegraDeNegocioException()
     {
         // Arrange
         var firebaseMock = new Mock<IFirebaseAuthClient>();
@@ -137,7 +137,7 @@ public class AuthServiceTests
             .Setup(f => f.ValidarTokenERetornarEmailAsync("token"))
             .ReturnsAsync("rm560384@fiap.com.br");
         oracleMock
-            .Setup(o => o.ObterUsuarioPorRmAsync("560384"))
+            .Setup(o => o.ObterUsuarioPorRmAsync("RM560384"))
             .ReturnsAsync((Usuario?)null);
 
         var service = new AuthService(firebaseMock.Object, oracleMock.Object, jwtMock.Object);
@@ -162,15 +162,15 @@ public class AuthServiceTests
             .Setup(f => f.ValidarTokenERetornarEmailAsync("token"))
             .ReturnsAsync("rm560384@fiap.com.br");
         oracleMock
-            .Setup(o => o.ObterUsuarioPorRmAsync("560384"))
+            .Setup(o => o.ObterUsuarioPorRmAsync("RM560384"))
             .ReturnsAsync(new Usuario
             {
-                Rm = "560384",
+                Rm = "RM560384",
                 NomeCompleto = "Alexis Rondo",
                 EmailInstitucional = "rm560384@fiap.com.br"
             });
         jwtMock
-            .Setup(j => j.Gerar("560384", "rm560384@fiap.com.br"))
+            .Setup(j => j.Gerar("RM560384", "rm560384@fiap.com.br"))
             .Returns(("token-fake", expiraEm));
 
         var service = new AuthService(firebaseMock.Object, oracleMock.Object, jwtMock.Object);
@@ -181,12 +181,12 @@ public class AuthServiceTests
 
         // Assert
         Assert.Equal("token-fake", resultado.Token);
-        Assert.Equal("560384", resultado.Rm);
+        Assert.Equal("RM560384", resultado.Rm);
         Assert.Equal("Alexis Rondo", resultado.NomeCompleto);
     }
 
     [Fact]
-    public async Task LoginAsync_QuandoTudoValido_GeradorRecebeRmSemPrefixoEEmailInstitucional()
+    public async Task LoginAsync_QuandoTudoValido_GeradorRecebeRmCanonicoEEmailInstitucional()
     {
         // Arrange
         var firebaseMock = new Mock<IFirebaseAuthClient>();
@@ -196,10 +196,10 @@ public class AuthServiceTests
             .Setup(f => f.ValidarTokenERetornarEmailAsync("token"))
             .ReturnsAsync("rm560384@fiap.com.br");
         oracleMock
-            .Setup(o => o.ObterUsuarioPorRmAsync("560384"))
+            .Setup(o => o.ObterUsuarioPorRmAsync("RM560384"))
             .ReturnsAsync(new Usuario
             {
-                Rm = "560384",
+                Rm = "RM560384",
                 NomeCompleto = "Alexis Rondo",
                 EmailInstitucional = "rm560384@fiap.com.br"
             });
@@ -214,6 +214,6 @@ public class AuthServiceTests
         await service.LoginAsync(request);
 
         // Assert
-        jwtMock.Verify(j => j.Gerar("560384", "rm560384@fiap.com.br"), Times.Once);
+        jwtMock.Verify(j => j.Gerar("RM560384", "rm560384@fiap.com.br"), Times.Once);
     }
 }

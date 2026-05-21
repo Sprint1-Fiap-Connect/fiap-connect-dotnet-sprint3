@@ -34,10 +34,10 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(email))
             throw new RegraDeNegocioException("IdToken invalido");
 
-        // Extrai RM do email no padrao rm560384@fiap.com.br (sem prefixo "rm")
+        // Extrai RM canonico do email (formato RM560384 com prefixo)
         var rm = ExtrairRmDoEmail(email);
 
-        // Busca usuario no Oracle (RM sem prefixo, o OracleClient concreto adapta pra URL)
+        // Busca usuario no Oracle pelo RM canonico
         var usuario = await _oracleClient.ObterUsuarioPorRmAsync(rm);
 
         if (usuario == null)
@@ -62,15 +62,13 @@ public class AuthService : IAuthService
         if (arroba <= 2)
             throw new RegraDeNegocioException("Email fora do padrao rmXXXXXX@fiap.com.br");
 
-        var prefixo = email.Substring(0, arroba).ToLowerInvariant();
-        if (!prefixo.StartsWith("rm"))
+        var prefixo = email.Substring(0, arroba).ToUpperInvariant();
+        if (!prefixo.StartsWith("RM"))
             throw new RegraDeNegocioException("Email fora do padrao rmXXXXXX@fiap.com.br");
 
-        var rm = prefixo.Substring(2);
-
-        if (rm.Length < 5 || !rm.All(char.IsDigit))
+        if (prefixo.Length < 7 || !prefixo.Substring(2).All(char.IsDigit))
             throw new RegraDeNegocioException("RM extraido do email invalido");
 
-        return rm;
+        return prefixo;
     }
 }
