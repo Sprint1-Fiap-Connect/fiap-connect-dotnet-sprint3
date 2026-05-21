@@ -13,6 +13,6 @@ public interface IOracleClient
     Task<Usuario?> ObterUsuarioPorRmAsync(string rm);
 
     // Verifica se o ORDS esta respondendo. Usado pelo health check da API
-    // A implementacao faz GET em /fiapconnect/usuarios/RM560384 (RM real e estavel)
+    // A implementacao faz GET em /fiapconnect/usuario/RM560384 (RM real e estavel)
     Task<bool> EstaSaudavelAsync();
 }
