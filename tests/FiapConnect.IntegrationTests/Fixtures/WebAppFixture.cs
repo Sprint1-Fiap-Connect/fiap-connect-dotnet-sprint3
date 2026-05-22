@@ -11,11 +11,16 @@ public class WebAppFixture : WebApplicationFactory<Program>
 	{
 		builder.UseEnvironment("Test");
 
+		// ContentRoot padrao do WebApplicationFactory aponta pra src/FiapConnect.API,
+		// entao resolvemos o caminho absoluto pro output dos testes onde o
+		// CopyToOutputDirectory deixou o appsettings.Test.json
+		var caminhoAppsettings = Path.Combine(
+			AppContext.BaseDirectory, "appsettings.Test.json");
+
 		builder.ConfigureAppConfiguration((context, config) =>
 		{
-			// Limpa providers padrao para nao herdar appsettings.Development
 			config.Sources.Clear();
-			config.AddJsonFile("appsettings.Test.json",
+			config.AddJsonFile(caminhoAppsettings,
 				optional: false, reloadOnChange: false);
 		});
 	}
