@@ -1,4 +1,5 @@
 using System.Text;
+using FiapConnect.API.Middlewares;
 using FiapConnect.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -74,6 +75,10 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
+
+// Middleware global de excecoes: precisa vir ANTES do Authentication
+// para capturar tambem qualquer excecao que ocorra no pipeline posterior
+app.UseMiddleware<ExcecaoGlobalMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
