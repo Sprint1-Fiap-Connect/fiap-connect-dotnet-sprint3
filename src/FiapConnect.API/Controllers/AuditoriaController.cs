@@ -1,3 +1,5 @@
+using FiapConnect.API.Hateoas;
+using FiapConnect.Application.DTOs.Auditoria;
 using FiapConnect.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -37,12 +39,43 @@ public class AuditoriaController : ControllerBase
 
         var paginada = todas.Skip((pagina - 1) * tamanhoPagina).Take(tamanhoPagina);
 
-        return Ok(new
+        var resposta = new RespostaPaginadaDto<AuditoriaResponse>
         {
-            itens = paginada,
-            pagina,
-            tamanhoPagina,
-            total = todas.Count
+            Itens = paginada,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina,
+            TotalItens = todas.Count,
+            TotalPaginas = (int)Math.Ceiling(todas.Count / (double)tamanhoPagina)
+        };
+
+        // Inclui o filtro tabelaAfetada na querystring apenas se preenchido
+        var baseUrl = $"{Request.Scheme}://{Request.Host}/api/auditoria";
+        var filtroTabela = string.IsNullOrWhiteSpace(tabelaAfetada)
+            ? string.Empty
+            : $"tabelaAfetada={tabelaAfetada}&";
+
+        resposta.Links.Add(new LinkDto
+        {
+            Href = $"{baseUrl}?{filtroTabela}pagina={pagina}&tamanhoPagina={tamanhoPagina}",
+            Rel = "self"
         });
+        if (pagina > 1)
+        {
+            resposta.Links.Add(new LinkDto
+            {
+                Href = $"{baseUrl}?{filtroTabela}pagina={pagina - 1}&tamanhoPagina={tamanhoPagina}",
+                Rel = "previous"
+            });
+        }
+        if (pagina < resposta.TotalPaginas)
+        {
+            resposta.Links.Add(new LinkDto
+            {
+                Href = $"{baseUrl}?{filtroTabela}pagina={pagina + 1}&tamanhoPagina={tamanhoPagina}",
+                Rel = "next"
+            });
+        }
+
+        return Ok(resposta);
     }
 }

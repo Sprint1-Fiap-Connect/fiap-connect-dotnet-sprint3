@@ -1,3 +1,4 @@
+using FiapConnect.API.Hateoas;
 using FiapConnect.Application.DTOs.Notificacao;
 using FiapConnect.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -42,13 +43,41 @@ public class NotificacoesController : ControllerBase
             .ListarPorDestinatarioAsync(rmDestinatario, apenasNaoLidas)).ToList();
         var paginada = todas.Skip((pagina - 1) * tamanhoPagina).Take(tamanhoPagina);
 
-        return Ok(new
+        var resposta = new RespostaPaginadaDto<NotificacaoResponse>
         {
-            itens = paginada,
-            pagina,
-            tamanhoPagina,
-            total = todas.Count
+            Itens = paginada,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina,
+            TotalItens = todas.Count,
+            TotalPaginas = (int)Math.Ceiling(todas.Count / (double)tamanhoPagina)
+        };
+
+        var baseUrl = $"{Request.Scheme}://{Request.Host}/api/notificacoes";
+        var filtros = $"rmDestinatario={rmDestinatario}&apenasNaoLidas={apenasNaoLidas}";
+
+        resposta.Links.Add(new LinkDto
+        {
+            Href = $"{baseUrl}?{filtros}&pagina={pagina}&tamanhoPagina={tamanhoPagina}",
+            Rel = "self"
         });
+        if (pagina > 1)
+        {
+            resposta.Links.Add(new LinkDto
+            {
+                Href = $"{baseUrl}?{filtros}&pagina={pagina - 1}&tamanhoPagina={tamanhoPagina}",
+                Rel = "previous"
+            });
+        }
+        if (pagina < resposta.TotalPaginas)
+        {
+            resposta.Links.Add(new LinkDto
+            {
+                Href = $"{baseUrl}?{filtros}&pagina={pagina + 1}&tamanhoPagina={tamanhoPagina}",
+                Rel = "next"
+            });
+        }
+
+        return Ok(resposta);
     }
 
     [HttpPatch("{id}/lida")]

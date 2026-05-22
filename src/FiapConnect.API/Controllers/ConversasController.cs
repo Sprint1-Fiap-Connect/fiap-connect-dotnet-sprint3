@@ -1,3 +1,4 @@
+using FiapConnect.API.Hateoas;
 using FiapConnect.Application.DTOs.Conversa;
 using FiapConnect.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -21,7 +22,6 @@ public class ConversasController : ControllerBase
     public async Task<IActionResult> Criar([FromBody] CriarConversaRequest request)
     {
         var resposta = await _conversaService.CriarAsync(request);
-        // Location header aponta pro GET /{id} usando o ObjectId Mongo
         return CreatedAtAction(nameof(ObterPorId), new { id = resposta.Id }, resposta);
     }
 
@@ -41,13 +41,40 @@ public class ConversasController : ControllerBase
         var todas = (await _conversaService.ListarPorParticipanteAsync(rm)).ToList();
         var paginada = todas.Skip((pagina - 1) * tamanhoPagina).Take(tamanhoPagina);
 
-        return Ok(new
+        var resposta = new RespostaPaginadaDto<ConversaResponse>
         {
-            itens = paginada,
-            pagina,
-            tamanhoPagina,
-            total = todas.Count
+            Itens = paginada,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina,
+            TotalItens = todas.Count,
+            TotalPaginas = (int)Math.Ceiling(todas.Count / (double)tamanhoPagina)
+        };
+
+        // Monta links HATEOAS de navegacao (self, previous, next)
+        var baseUrl = $"{Request.Scheme}://{Request.Host}/api/conversas";
+        resposta.Links.Add(new LinkDto
+        {
+            Href = $"{baseUrl}?rm={rm}&pagina={pagina}&tamanhoPagina={tamanhoPagina}",
+            Rel = "self"
         });
+        if (pagina > 1)
+        {
+            resposta.Links.Add(new LinkDto
+            {
+                Href = $"{baseUrl}?rm={rm}&pagina={pagina - 1}&tamanhoPagina={tamanhoPagina}",
+                Rel = "previous"
+            });
+        }
+        if (pagina < resposta.TotalPaginas)
+        {
+            resposta.Links.Add(new LinkDto
+            {
+                Href = $"{baseUrl}?rm={rm}&pagina={pagina + 1}&tamanhoPagina={tamanhoPagina}",
+                Rel = "next"
+            });
+        }
+
+        return Ok(resposta);
     }
 
     [HttpPost("{id}/mensagens")]

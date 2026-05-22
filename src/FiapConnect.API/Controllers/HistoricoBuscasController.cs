@@ -1,3 +1,4 @@
+using FiapConnect.API.Hateoas;
 using FiapConnect.Application.DTOs.HistoricoBusca;
 using FiapConnect.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -41,13 +42,39 @@ public class HistoricoBuscasController : ControllerBase
 		var todas = (await _historicoBuscaService.ListarPorAlunoAsync(rmAluno)).ToList();
 		var paginada = todas.Skip((pagina - 1) * tamanhoPagina).Take(tamanhoPagina);
 
-		return Ok(new
+		var resposta = new RespostaPaginadaDto<HistoricoBuscaResponse>
 		{
-			itens = paginada,
-			pagina,
-			tamanhoPagina,
-			total = todas.Count
+			Itens = paginada,
+			Pagina = pagina,
+			TamanhoPagina = tamanhoPagina,
+			TotalItens = todas.Count,
+			TotalPaginas = (int)Math.Ceiling(todas.Count / (double)tamanhoPagina)
+		};
+
+		var baseUrl = $"{Request.Scheme}://{Request.Host}/api/historico-buscas";
+		resposta.Links.Add(new LinkDto
+		{
+			Href = $"{baseUrl}?rmAluno={rmAluno}&pagina={pagina}&tamanhoPagina={tamanhoPagina}",
+			Rel = "self"
 		});
+		if (pagina > 1)
+		{
+			resposta.Links.Add(new LinkDto
+			{
+				Href = $"{baseUrl}?rmAluno={rmAluno}&pagina={pagina - 1}&tamanhoPagina={tamanhoPagina}",
+				Rel = "previous"
+			});
+		}
+		if (pagina < resposta.TotalPaginas)
+		{
+			resposta.Links.Add(new LinkDto
+			{
+				Href = $"{baseUrl}?rmAluno={rmAluno}&pagina={pagina + 1}&tamanhoPagina={tamanhoPagina}",
+				Rel = "next"
+			});
+		}
+
+		return Ok(resposta);
 	}
 
 	[HttpDelete("{id}")]
