@@ -1,4 +1,5 @@
 using System.Text;
+using FiapConnect.API.HealthChecks;
 using FiapConnect.API.Middlewares;
 using FiapConnect.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -65,6 +66,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// Health checks de Mongo e ORDS. Timeout individual evita /health pendurar
+builder.Services.AddHealthChecks()
+    .AddCheck<MongoHealthCheck>("mongo", timeout: TimeSpan.FromSeconds(5))
+    .AddCheck<OracleHealthCheck>("ords", timeout: TimeSpan.FromSeconds(5));
+
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
@@ -84,5 +90,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
