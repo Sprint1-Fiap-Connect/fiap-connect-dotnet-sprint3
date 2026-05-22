@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using FiapConnect.Application.Interfaces;
+using FiapConnect.Application.Services;
 using FiapConnect.Domain.Interfaces;
 using FiapConnect.Infrastructure.Firebase;
 using FiapConnect.Infrastructure.Jwt;
@@ -30,6 +31,13 @@ public static class DependencyInjection
         services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
         services.AddScoped<IHistoricoBuscaRepository, HistoricoBuscaRepository>();
         services.AddScoped<IAuditoriaRepository, AuditoriaRepository>();
+
+        // Services da Application (consumidos pelos Controllers da API)
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IConversaService, ConversaService>();
+        services.AddScoped<INotificacaoService, NotificacaoService>();
+        services.AddScoped<IHistoricoBuscaService, HistoricoBuscaService>();
+        services.AddScoped<IAuditoriaService, AuditoriaService>();
 
         // Firebase: Singleton porque a inicializacao do FirebaseApp eh global ao processo
         services.AddSingleton<IFirebaseAuthClient, FirebaseAuthClient>();
