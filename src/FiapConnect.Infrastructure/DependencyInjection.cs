@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using FiapConnect.Application.Interfaces;
 using FiapConnect.Application.Services;
@@ -45,21 +46,42 @@ public static class DependencyInjection
         // JWT
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
-        // Oracle: HttpClient tipado com headers Mozilla pra burlar o WAF Akamai
+        // Oracle: HttpClient tipado com headers Chrome completos pra burlar o WAF Akamai
         var ordsBaseUrl = configuration["Oracle:BaseUrl"]
             ?? throw new InvalidOperationException("Oracle:BaseUrl nao configurada");
 
-        services.AddHttpClient<IOracleClient, OracleClient>(client =>
-        {
-            client.BaseAddress = new Uri(ordsBaseUrl);
-            client.Timeout = TimeSpan.FromSeconds(30);
+        services
+            .AddHttpClient<IOracleClient, OracleClient>(client =>
+            {
+                client.BaseAddress = new Uri(ordsBaseUrl);
+                client.Timeout = TimeSpan.FromSeconds(30);
 
-            client.DefaultRequestHeaders.UserAgent.ParseAdd(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
-            client.DefaultRequestHeaders.Add("Origin", "https://oracleapex.com");
-            client.DefaultRequestHeaders.Accept.Add(
-                new MediaTypeWithQualityHeaderValue("application/json"));
-        });
+                // User-Agent completo do Chrome 126: WAF rejeita UAs simples
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
+
+                client.DefaultRequestHeaders.Accept.ParseAdd(
+                    "application/json, text/plain, */*");
+                client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(
+                    "pt-BR,pt;q=0.9,en;q=0.8");
+                client.DefaultRequestHeaders.AcceptEncoding.ParseAdd("gzip, deflate, br");
+
+                client.DefaultRequestHeaders.Add("Origin", "https://oracleapex.com");
+                client.DefaultRequestHeaders.Referrer = new Uri("https://oracleapex.com/");
+
+                // Sec-Fetch-* simulam fetch CORS do navegador, sinais que o WAF observa
+                client.DefaultRequestHeaders.Add("Sec-Fetch-Dest", "empty");
+                client.DefaultRequestHeaders.Add("Sec-Fetch-Mode", "cors");
+                client.DefaultRequestHeaders.Add("Sec-Fetch-Site", "same-origin");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                // Necessario porque enviamos Accept-Encoding gzip/deflate/br nos headers
+                AutomaticDecompression = DecompressionMethods.GZip
+                    | DecompressionMethods.Deflate
+                    | DecompressionMethods.Brotli
+            });
 
         return services;
     }
