@@ -5,8 +5,22 @@ using FiapConnect.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Serilog: logger global da aplicacao com saida estruturada para console
+// FromLogContext permite que o ASP.NET Core enriqueca os logs com RequestId
+// (correlacao automatica entre logs da mesma requisicao)
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Application", "FiapConnect.API")
+        .WriteTo.Console(outputTemplate:
+            "[{Timestamp:HH:mm:ss} {Level:u3}] {RequestId} {Message:lj}{NewLine}{Exception}");
+});
 
 // Add services to the container.
 
@@ -82,8 +96,11 @@ app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
-// Middleware global de excecoes: precisa vir ANTES do Authentication
-// para capturar tambem qualquer excecao que ocorra no pipeline posterior
+// Logging estruturado de cada request (metodo, path, status, duration)
+// Vem antes do middleware de excecoes para capturar tambem requests com erro
+app.UseSerilogRequestLogging();
+
+// Middleware global de excecoes
 app.UseMiddleware<ExcecaoGlobalMiddleware>();
 
 app.UseAuthentication();
