@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
@@ -24,4 +25,13 @@
     <ProjectReference Include="..\..\src\FiapConnect.API\FiapConnect.API.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="appsettings.Test.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="serviceAccountKey.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+	
 </Project>

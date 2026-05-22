@@ -110,3 +110,6 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 app.Run();
+
+// Necessario para WebApplicationFactory<Program> na FiapConnect.IntegrationTests
+public partial class Program { }
