@@ -15,4 +15,10 @@ public interface IOracleClient
     // Verifica se o ORDS esta respondendo. Usado pelo health check da API
     // A implementacao faz GET em /fiapconnect/usuario/RM560384 (RM real e estavel)
     Task<bool> EstaSaudavelAsync();
+
+    // Faz um GET bruto com a URL relativa informada e devolve o HttpResponseMessage
+    // intacto. Usado pelo DebugController para inspecionar status, headers e body
+    // exatamente como chegam do ORDS, confirmando que os 9 headers Akamai saem
+    // corretamente do IP do Railway
+    Task<HttpResponseMessage> GetAsync(string relativeUrl);
 }

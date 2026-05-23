@@ -68,4 +68,11 @@ public class OracleClient : IOracleClient
             return false;
         }
     }
+
+    // Delega diretamente ao HttpClient tipado para que o DebugController possa
+    // inspecionar a resposta bruta (status, headers, body) sem nenhuma transformacao.
+    // Todos os 9 headers configurados no DependencyInjection sao enviados automaticamente
+    // pelo HttpClient tipado antes de a requisicao sair do Railway
+    public Task<HttpResponseMessage> GetAsync(string relativeUrl)
+        => _httpClient.GetAsync(relativeUrl);
 }
