@@ -1,6 +1,8 @@
-# FIAP Connect API — Sprint 3
+# FIAP Connect — API .NET (Sprint 4)
 
-Sistema de formação de grupos acadêmicos para o Challenge Oracle FIAP.
+API REST do projeto FIAP Connect, sistema de formação de grupos acadêmicos
+desenvolvido para o Challenge Oracle FIAP. Esta API .NET é um dos componentes
+da solução integrada (Mobile + APEX/ORDS + .NET + Flask).
 
 ## Integrantes
 
@@ -11,256 +13,122 @@ Sistema de formação de grupos acadêmicos para o Challenge Oracle FIAP.
 
 ---
 
-## O que foi adicionado na Sprint 3
+## Histórico da arquitetura — Sprint 3 para Sprint 4
 
-Esta sprint evoluiu a API REST da Sprint 2 adicionando três camadas:
+Na Sprint 3, esta API .NET implementava o domínio relacional completo do
+FIAP Connect (Usuários, Grupos, Habilidades, Solicitações) sobre Oracle
+relacional via Entity Framework Core.
 
-- **Monitoramento e Observabilidade** — Health Checks, Logging com Serilog e Tracing com OpenTelemetry
-- **Testes Automatizados** — Testes unitários e de integração com xUnit seguindo o padrão AAA, organizados por camada com uso de Fixtures e Collection Fixtures
-- **README atualizado** com documentação dos endpoints e instruções de execução
+A Sprint 4 do Challenge Oracle exige que o Oracle APEX seja parte essencial
+da solução, não apenas banco de dados — ele deve processar dados e expor
+lógica via ORDS. Para atender este requisito sem duplicar funcionalidades,
+o domínio relacional foi migrado integralmente para Oracle APEX/ORDS, que
+agora é responsável pelos Usuários, Grupos, Habilidades e Solicitações.
 
----
+Esta API .NET foi refatorada na Sprint 4 para assumir um papel
+complementar: ser responsável pelas 4 coleções MongoDB do projeto
+(mensagens, notificações, histórico de buscas, auditoria) e pela
+autenticação centralizada via Firebase + JWT próprio. Toda a lógica
+relacional antiga (Controllers de Usuario/Grupo/Habilidade/Solicitacao
+da Sprint 3) foi removida.
 
-## Tecnologias
-
-- .NET 8.0 / C#
-- Serilog (logging estruturado)
-- OpenTelemetry (distributed tracing)
-- Microsoft.Extensions.Diagnostics.HealthChecks
-- xUnit + Moq (testes)
-- Swagger / OpenAPI
-
----
-
-## Como executar
-
-### Pré-requisitos
-- .NET 8.0 SDK instalado
-
-### Rodando a API
-
-```bash
-# Clonar o repositório
-git clone https://github.com/Sprint1-Fiap-Connect/fiap-connect-dotnet-sprint3
-
-# Entrar na pasta do projeto
-cd fiap-connect-dotnet-sprint3
-
-# Restaurar dependências
-dotnet restore
-
-# Executar
-dotnet run
-```
-
-A API estará disponível em:
-- Swagger: `https://localhost:7xxx/swagger`
-- Health Check: `https://localhost:7xxx/health/simple`
+A motivação dessa divisão é que cada componente fique responsável pelo
+que faz melhor: APEX trata o relacional rico e exposto pelo Challenge,
+e a API .NET trata o domínio NoSQL (chat em tempo de uso, notificações
+e auditoria) que se beneficia de MongoDB.
 
 ---
 
-## Endpoints
+## Visão geral do projeto integrado
 
-### Usuário
+O FIAP Connect é composto pelos seguintes componentes que se conectam por HTTP:
 
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/api/usuario` | Lista todos os usuários |
-| GET | `/api/usuario/{id}` | Obtém usuário por ID |
-| POST | `/api/usuario` | Cria novo usuário |
-| PATCH | `/api/usuario/{id}/status` | Atualiza status de busca |
-| DELETE | `/api/usuario/{id}` | Remove usuário |
-| GET | `/api/usuario/search` | Busca com paginação e filtros |
+```
++----------------+      +----------------------+
+|                |----->| Oracle APEX / ORDS   |  (Usuários, Grupos,
+|                |      | (dominio relacional) |   Habilidades,
+|    Mobile      |      +----------------------+   Solicitações)
+| (React Native) |
+|                |      +----------------------+
+|                |----->| API .NET 8           |  (Conversas, Notificações,
+|                |      | (este repositorio)   |   Histórico, Auditoria,
++----------------+      |  + Auth JWT          |   Health Checks)
+                        +----------------------+
+                                  |
+                                  v
+                        +----------------------+
+                        | MongoDB Atlas        |  (4 coleções NoSQL)
+                        +----------------------+
 
-**Parâmetros de busca:** `nome`, `curso`, `statusBusca`, `page`, `pageSize`, `orderBy`
-
-**Exemplo POST /api/usuario:**
-```json
-{
-  "rm": "RM12345",
-  "nomeCompleto": "João Silva",
-  "emailInstitucional": "joao.silva@fiap.com.br",
-  "curso": "Análise e Desenvolvimento de Sistemas",
-  "periodo": "Noturno",
-  "turma": "2TDSPS",
-  "statusBusca": true
-}
++----------------+      +----------------------+
+| APEX / Mobile  |----->| Flask (IoT/GenIA)    |  (Random Forest para
++----------------+      +----------------------+   compatibilidade de grupos)
 ```
 
-### Grupo
+### Divisão de responsabilidades
 
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/api/grupo` | Lista todos os grupos |
-| GET | `/api/grupo/{id}` | Obtém grupo por ID |
-| POST | `/api/grupo` | Cria novo grupo |
-| PUT | `/api/grupo/{id}` | Atualiza grupo |
-| DELETE | `/api/grupo/{id}` | Remove grupo |
-| GET | `/api/grupo/abertos` | Lista grupos com vagas |
-| GET | `/api/grupo/search` | Busca com paginação e filtros |
-
-**Parâmetros de busca:** `nome`, `status`, `page`, `pageSize`
-
-**Exemplo POST /api/grupo:**
-```json
-{
-  "nomeGrupo": "Tech Innovators",
-  "descricaoProjeto": "App mobile para gestão acadêmica",
-  "disciplinaTema": "Mobile",
-  "maxIntegrantes": 3
-}
-```
-
-### Habilidade
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/api/habilidade` | Lista todas as habilidades |
-| GET | `/api/habilidade/search` | Busca com filtros |
-
-### Solicitação
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| POST | `/api/solicitacao` | Cria solicitação para entrar em grupo |
-| GET | `/api/solicitacao/{id}` | Obtém solicitação por ID |
-| GET | `/api/solicitacao/search` | Busca solicitações com paginação |
+| Componente | Responsabilidade |
+|---|---|
+| **Oracle APEX / ORDS** | Domínio relacional (Usuários, Grupos, Habilidades, Solicitações) |
+| **API .NET** (este repo) | 4 coleções MongoDB + Autenticação JWT + Health Checks |
+| **Mobile (React Native)** | Cliente: consome tanto APEX quanto .NET |
+| **Flask (IoT/GenIA)** | Modelo Random Forest para cálculo de compatibilidade |
 
 ---
 
-## Health Checks
+## O que esta API entrega
 
-A API expõe dois endpoints de health check:
-
-### GET `/health/simple`
-Retorna status simplificado em JSON:
-```json
-{
-  "status": "Healthy",
-  "timestamp": "2025-04-10T10:00:00Z",
-  "checks": [
-    { "nome": "api", "status": "Healthy", "descricao": "API funcionando normalmente" },
-    { "nome": "memoria", "status": "Healthy", "descricao": "Memória OK: 45MB" }
-  ]
-}
-```
-
-### GET `/health`
-Retorna relatório detalhado no formato padrão do HealthChecks.UI.
+- Autenticação via Firebase idToken com emissão de JWT próprio (HS256)
+- CRUD das 4 coleções MongoDB (mensagens, notificações, histórico de
+  buscas, auditoria)
+- Validação de usuários contra Oracle APEX via ORDS
+- HATEOAS nos endpoints de listagem (links self, previous, next)
+- Health Checks de Mongo e ORDS no endpoint `/health`
+- Tratamento global de exceções com payload padronizado
+- Logging estruturado com Serilog (correlação por RequestId)
+- Tracing distribuído com OpenTelemetry
+- Documentação interativa via Swagger
+- 30 testes unitários + 9 testes de integração
 
 ---
 
-## Logging
+## Stack técnica
 
-Os logs são gerados automaticamente pelo Serilog em dois destinos:
-
-- **Console** — visível durante a execução da aplicação
-- **Arquivo** — pasta `logs/` com arquivos diários no formato `fiapconnect-YYYYMMDD.log`
-
-Níveis de log utilizados:
-- `Information` — requisições recebidas, operações concluídas com sucesso
-- `Warning` — recursos não encontrados, dados inválidos
-- `Error` / `Fatal` — erros inesperados e falhas na inicialização
-
----
-
-## Testes Automatizados
-
-### Estrutura
-
-```
-FiapConnect.Tests/
-├── Unit/
-│   ├── UsuarioControllerTests.cs   (4 testes)
-│   └── GrupoControllerTests.cs     (3 testes)
-└── Integration/
-    ├── WebAppFixture.cs
-    ├── ApiTestCollection.cs
-    └── ApiIntegrationTests.cs      (6 testes)
-
-Total: 13 testes
-```
-
-Os testes de integração utilizam **Collection Fixture** (`ApiTestCollection`) para compartilhar uma única instância da aplicação em memória entre todos os cenários, e **WebAppFixture** para gerenciar o ciclo de vida do `WebApplicationFactory`.
-
-### Como executar os testes
-
-```bash
-# Executar todos os testes
-dotnet test FiapConnectSprint2.sln
-
-# Executar com detalhes
-dotnet test FiapConnectSprint2.sln --verbosity normal
-
-# Executar apenas testes unitários
-dotnet test FiapConnectSprint2.sln --filter "FullyQualifiedName~Unit"
-
-# Executar apenas testes de integração
-dotnet test FiapConnectSprint2.sln --filter "FullyQualifiedName~Integration"
-```
-
-### Padrão AAA
-
-Todos os testes seguem o padrão **Arrange → Act → Assert**:
-
-```csharp
-[Fact]
-public void GetUsuario_QuandoIdExiste_RetornaOkComUsuario()
-{
-    // Arrange
-    var idExistente = 1;
-
-    // Act
-    var resultado = _controller.GetUsuario(idExistente);
-
-    // Assert
-    var okResult = Assert.IsType<OkObjectResult>(resultado.Result);
-    var usuario = Assert.IsType<UsuarioDTO>(okResult.Value);
-    Assert.Equal(idExistente, usuario.IdUsuario);
-}
-```
+| Componente | Tecnologia |
+|---|---|
+| Linguagem | C# 12 / .NET 8 |
+| Framework Web | ASP.NET Core 8 |
+| Persistência NoSQL | MongoDB Atlas + MongoDB.Driver 2.25 |
+| Persistência Relacional (consumo) | Oracle 19c via ORDS (HttpClient tipado) |
+| Autenticação | Firebase Admin SDK + JWT (HS256) |
+| Logging | Serilog estruturado |
+| Tracing | OpenTelemetry |
+| Documentação API | Swashbuckle.AspNetCore (Swagger / OpenAPI) |
+| Testes Unitários | xUnit + Moq |
+| Testes Integração | xUnit + Microsoft.AspNetCore.Mvc.Testing + FluentAssertions |
+| Hospedagem | Render.com (buildpack .NET) |
 
 ---
 
-## Estrutura do Projeto
+## Limitações conhecidas
 
-```
-FiapConnect/
-├── Controllers/
-│   ├── UsuarioController.cs
-│   ├── GrupoController.cs
-│   ├── HabilidadeController.cs
-│   └── SolicitacaoController.cs
-├── Models/
-│   ├── Usuario.cs
-│   ├── Grupo.cs
-│   ├── GrupoUsuario.cs
-│   ├── Habilidade.cs
-│   ├── Solicitacao.cs
-│   └── UsuarioHabilidade.cs
-├── DTOs/
-│   ├── UsuarioDTO.cs
-│   ├── GrupoDTO.cs
-│   ├── HabilidadeDTO.cs
-│   ├── SolicitacaoDTO.cs
-│   └── PagedResultDTO.cs
-├── logs/                   (gerado automaticamente)
-├── Program.cs
-└── FiapConnect.csproj
-
-FiapConnect.Tests/
-├── Unit/
-│   ├── UsuarioControllerTests.cs
-│   └── GrupoControllerTests.cs
-├── Integration/
-│   ├── WebAppFixture.cs
-│   ├── ApiTestCollection.cs
-│   └── ApiIntegrationTests.cs
-└── FiapConnect.Tests.csproj
-```
+- **Render free tier dorme** após 15 minutos de ociosidade. O primeiro
+  request depois da pausa demora de 30 a 60 segundos para acordar
+  (cold start).
+- **JWT expira em 8 horas** por padrão. Configurável via
+  `Jwt:ExpirationHours` no `appsettings`.
+- **WAF Akamai do oracleapex.com** pode endurecer regras sem aviso.
+  Os headers HTTP do `OracleClient` foram calibrados em 22/05/2026
+  para passar pelo filtro atual (User-Agent Chrome 126 completo,
+  Sec-Fetch-*, Origin, Referer). Pode precisar de ajuste futuro se
+  o WAF endurecer regras.
 
 ---
 
-## Repositório Sprint 2
+## Links
 
-https://github.com/Sprint1-Fiap-Connect/fiap-connect-dotnet-sprint2
+- **Deploy Render:** TBD — atualizado após Rodada 6.A
+- **Vídeo .NET solo:** TBD — atualizado após gravação
+- **Vídeo de integração final (todas as disciplinas):** TBD — atualizado
+  após integração completa
+- **Repositório:** https://github.com/Sprint1-Fiap-Connect/fiap-connect-dotnet-sprint3
