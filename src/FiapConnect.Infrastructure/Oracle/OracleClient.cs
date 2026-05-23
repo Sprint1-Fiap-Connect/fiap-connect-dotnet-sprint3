@@ -12,24 +12,27 @@ public class OracleClient : IOracleClient
     public OracleClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        // BaseAddress e headers Mozilla (anti-WAF Akamai) sao configurados na DI (3.F)
     }
 
     public async Task<Usuario?> ObterUsuarioPorRmAsync(string rm)
     {
         var response = await _httpClient.GetAsync($"usuario/{rm}");
+        var json = await response.Content.ReadAsStringAsync();
 
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             return null;
         }
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"ORDS retornou erro {(int)response.StatusCode} - {response.ReasonPhrase}");
+            Console.WriteLine(json.Length > 1000 ? json[..1000] : json);
+            return null;
+        }
 
-        var json = await response.Content.ReadAsStringAsync();
-
-        // ORDS pode devolver o objeto direto OU dentro de { items: [...] }
         UsuarioOrdsResponse? dto;
+
         if (json.Contains("\"items\""))
         {
             var wrapper = JsonSerializer.Deserialize<OrdsItemsWrapper<UsuarioOrdsResponse>>(json);
@@ -55,7 +58,6 @@ public class OracleClient : IOracleClient
 
     public async Task<bool> EstaSaudavelAsync()
     {
-        // Health check do ORDS: tenta buscar RM560384 (sempre existe na tabela USUARIO)
         try
         {
             var usuario = await ObterUsuarioPorRmAsync("RM560384");
