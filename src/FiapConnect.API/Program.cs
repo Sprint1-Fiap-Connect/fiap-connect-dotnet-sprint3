@@ -25,6 +25,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 
 // Swagger com suporte a JWT Bearer no botao "Authorize"
