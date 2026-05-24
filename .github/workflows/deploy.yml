@@ -1,0 +1,146 @@
+name: Build & Deploy to AWS EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # tambem permite disparo manual no GitHub UI
+
+# Garante que so 1 deploy roda por vez (evita 2 deploys concorrentes pisando)
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # QEMU permite build cross-arch (amd64 runner -> imagem arm64 pra t4g.small)
+      # Se um dia migrarmos pra runner arm64 (ubuntu-24.04-arm), esse step + buildx
+      # ainda funcionam, so ficam mais rapidos.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build fiap-connect (linux/arm64)
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --tag fiap-connect:local \
+            --load \
+            .
+
+      - name: Build oracle-proxy (linux/arm64)
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --tag oracle-proxy:local \
+            --load \
+            ./oracle-proxy
+
+      - name: Save images as tarballs
+        run: |
+          mkdir -p ci-images
+          docker save fiap-connect:local | gzip > ci-images/fiap-connect.tar.gz
+          docker save oracle-proxy:local | gzip > ci-images/oracle-proxy.tar.gz
+          ls -lh ci-images/
+
+      - name: Prepare SSH key + known_hosts
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST:    ${{ secrets.EC2_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/deploy.pem
+          chmod 600 ~/.ssh/deploy.pem
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Write .env from secrets
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          MONGO_CONN:     ${{ secrets.MONGO_CONN }}
+          DOMAIN:         ${{ secrets.DOMAIN }}
+        run: |
+          cat > ci-env <<EOF
+          JWT_SECRET_KEY=${JWT_SECRET_KEY}
+          MONGO_CONN=${MONGO_CONN}
+          DOMAIN=${DOMAIN}
+          EOF
+
+      - name: Write serviceAccountKey.json from secret
+        env:
+          FIREBASE_JSON: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
+        run: |
+          printf '%s' "$FIREBASE_JSON" > ci-serviceAccountKey.json
+          # Validacao basica: deve ser JSON valido
+          python3 -c "import json; json.load(open('ci-serviceAccountKey.json'))"
+
+      - name: SCP files to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          ssh -i ~/.ssh/deploy.pem ec2-user@"$EC2_HOST" 'mkdir -p ~/app'
+          scp -i ~/.ssh/deploy.pem \
+            ci-images/fiap-connect.tar.gz \
+            ci-images/oracle-proxy.tar.gz \
+            deploy/docker-compose.yml \
+            deploy/Caddyfile \
+            ci-env \
+            ci-serviceAccountKey.json \
+            ec2-user@"$EC2_HOST":~/app/
+          # Renomeia no EC2 (scp nao deixa renomear no destino)
+          ssh -i ~/.ssh/deploy.pem ec2-user@"$EC2_HOST" \
+            'cd ~/app && mv -f ci-env .env && mv -f ci-serviceAccountKey.json serviceAccountKey.json'
+
+      - name: Load images & restart compose on EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          ssh -i ~/.ssh/deploy.pem ec2-user@"$EC2_HOST" bash -s <<'REMOTE'
+          set -euo pipefail
+          cd ~/app
+          echo "→ Carregando imagens..."
+          docker load < fiap-connect.tar.gz
+          docker load < oracle-proxy.tar.gz
+          echo "→ Restartando compose..."
+          docker compose --env-file .env down 2>/dev/null || true
+          docker compose --env-file .env up -d
+          sleep 5
+          echo "→ Status:"
+          docker compose ps
+          echo "→ Limpando imagens antigas (libera disco)..."
+          docker image prune -af --filter "until=24h"
+          REMOTE
+
+      - name: Smoke test (validar /health via HTTPS)
+        env:
+          DOMAIN: ${{ secrets.DOMAIN }}
+        run: |
+          echo "Aguardando 10s pro app inicializar..."
+          sleep 10
+          for i in {1..6}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "https://$DOMAIN/health" || echo "000")
+            BODY=$(curl -s --max-time 10 "https://$DOMAIN/health" || echo "ERROR")
+            echo "Tentativa $i: HTTP $STATUS / body=$BODY"
+            if [ "$STATUS" = "200" ] && [ "$BODY" = "Healthy" ]; then
+              echo "✅ Deploy OK"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "❌ Smoke test falhou"
+          exit 1
+
+      - name: Cleanup local files
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy.pem ci-env ci-serviceAccountKey.json
+          rm -rf ci-images

@@ -1,0 +1,5 @@
+.env
+.aws-state
+*.pem
+serviceAccountKey.json
+images/
