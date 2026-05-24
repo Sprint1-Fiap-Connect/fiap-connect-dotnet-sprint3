@@ -106,29 +106,44 @@ O FIAP Connect é composto pelos seguintes componentes que se conectam por HTTP:
 | Documentação API | Swashbuckle.AspNetCore (Swagger / OpenAPI) |
 | Testes Unitários | xUnit + Moq |
 | Testes Integração | xUnit + Microsoft.AspNetCore.Mvc.Testing + FluentAssertions |
-| Hospedagem | Render.com (buildpack .NET) |
+| Hospedagem | AWS EC2 (Docker Compose + Caddy + GitHub Actions) |
+
+---
+
+## Deploy
+
+A API roda em uma instância **AWS EC2 t4g.small (ARM64)** orquestrada via
+`docker-compose`, com 3 containers:
+
+- `fiap-connect-api` — esta API .NET
+- `oracle-proxy` — proxy Python que repassa chamadas ao ORDS
+- `caddy` — reverse proxy com terminação TLS automática via Let's Encrypt
+
+O pipeline CI/CD usa **GitHub Actions** (`.github/workflows/deploy.yml`):
+build cross-arch (`docker buildx` com QEMU amd64 → arm64), SCP das imagens
+e configs pra EC2 via SSH, restart do docker-compose, e smoke test
+final validando `/health` retornando "Healthy".
+
+Cada push na branch `main` dispara o pipeline. Tempo médio de deploy: ~6 min.
 
 ---
 
 ## Limitações conhecidas
 
-- **Render free tier dorme** após 15 minutos de ociosidade. O primeiro
-  request depois da pausa demora de 30 a 60 segundos para acordar
-  (cold start).
 - **JWT expira em 8 horas** por padrão. Configurável via
   `Jwt:ExpirationHours` no `appsettings`.
 - **WAF Akamai do oracleapex.com** pode endurecer regras sem aviso.
-  Os headers HTTP do `OracleClient` foram calibrados em 22/05/2026
-  para passar pelo filtro atual (User-Agent Chrome 126 completo,
-  Sec-Fetch-*, Origin, Referer). Pode precisar de ajuste futuro se
-  o WAF endurecer regras.
+  Em produção, a API consome o ORDS através de um proxy Python
+  intermediário (container `oracle-proxy/` no docker-compose) que
+  contorna o WAF. Em desenvolvimento local, a API aponta direto pra
+  `oracleapex.com` usando os headers Chrome 126 configurados no DI.
 
 ---
 
 ## Links
 
-- **Deploy Render:** TBD — atualizado após Rodada 6.A
-- **Vídeo .NET solo:** TBD — atualizado após gravação
-- **Vídeo de integração final (todas as disciplinas):** TBD — atualizado
-  após integração completa
+- **API em produção (HTTPS):** https://44-214-247-152.sslip.io
+- **Swagger:** https://44-214-247-152.sslip.io/swagger
+- **Health Check:** https://44-214-247-152.sslip.io/health
+- **Vídeo .NET :** Pendente
 - **Repositório:** https://github.com/Sprint1-Fiap-Connect/fiap-connect-dotnet-sprint3
