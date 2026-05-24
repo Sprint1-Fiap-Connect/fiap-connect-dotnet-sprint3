@@ -310,10 +310,12 @@ Firebase, JWT secret) e acesso de rede.
 
 ## Links
 
+- **Vídeo de demonstração:** [https://youtu.be/3-qGD7G8NU4]    
+     (Usando Swagger e com integração real com MongoDB)
+
 - **Swagger:** https://44-214-247-152.sslip.io/swagger   
 (não acessivel sem Jwt gerado por Firebase Auth via projeto mobile)
 
 - **API em produção (HTTPS):** https://44-214-247-152.sslip.io
 - **Health Check:** https://44-214-247-152.sslip.io/health
-- **Vídeo de demonstração:** [link a ser inserido após gravação]
 - **Repositório:** https://github.com/Sprint1-Fiap-Connect/fiap-connect-dotnet-sprint3
