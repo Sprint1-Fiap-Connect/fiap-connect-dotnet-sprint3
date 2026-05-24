@@ -2,16 +2,19 @@ using System.Text.Json;
 using FiapConnect.Application.Interfaces;
 using FiapConnect.Domain.Entities;
 using FiapConnect.Infrastructure.Oracle.Dto;
+using Microsoft.Extensions.Logging;
 
 namespace FiapConnect.Infrastructure.Oracle;
 
 public class OracleClient : IOracleClient
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<OracleClient> _logger;
 
-    public OracleClient(HttpClient httpClient)
+    public OracleClient(HttpClient httpClient, ILogger<OracleClient> logger)
     {
         _httpClient = httpClient;
+        _logger = logger;
     }
 
     public async Task<Usuario?> ObterUsuarioPorRmAsync(string rm)
@@ -26,8 +29,11 @@ public class OracleClient : IOracleClient
 
         if (!response.IsSuccessStatusCode)
         {
-            Console.WriteLine($"ORDS retornou erro {(int)response.StatusCode} - {response.ReasonPhrase}");
-            Console.WriteLine(json.Length > 1000 ? json[..1000] : json);
+            // Trunca body para nao poluir log quando ORDS devolve HTML grande
+            var bodyParaLog = json.Length > 1000 ? json[..1000] : json;
+            _logger.LogWarning(
+                "ORDS retornou erro {StatusCode} {ReasonPhrase}. Body: {Body}",
+                (int)response.StatusCode, response.ReasonPhrase, bodyParaLog);
             return null;
         }
 
@@ -69,10 +75,9 @@ public class OracleClient : IOracleClient
         }
     }
 
-    // Delega diretamente ao HttpClient tipado para que o DebugController possa
-    // inspecionar a resposta bruta (status, headers, body) sem nenhuma transformacao.
-    // Todos os 9 headers configurados no DependencyInjection sao enviados automaticamente
-    // pelo HttpClient tipado antes de a requisicao sair do Railway
+    // Delega ao HttpClient tipado para o DebugController inspecionar a resposta
+    // bruta (status, headers, body) sem transformacao. Os headers configurados
+    // no DependencyInjection sao enviados automaticamente
     public Task<HttpResponseMessage> GetAsync(string relativeUrl)
         => _httpClient.GetAsync(relativeUrl);
 }

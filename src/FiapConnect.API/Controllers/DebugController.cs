@@ -4,13 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FiapConnect.API.Controllers;
 
-// Endpoint temporario de diagnostico: verifica se o IOracleClient configurado
-// com os 9 headers Akamai (User-Agent Chrome 126, Accept, Accept-Language,
-// Accept-Encoding, Origin, Referer, Sec-Fetch-Dest, Sec-Fetch-Mode, Sec-Fetch-Site)
-// esta enviando-os corretamente a partir do IP do Railway.
-// Usa o mesmo cliente tipado registrado no DependencyInjection, garantindo que
-// nenhum header seja omitido em relacao ao que o WAF espera.
+// Endpoint de diagnostico: confirma que o IOracleClient esta conseguindo
+// chegar ao ORDS via proxy. Retorna status, headers e body brutos da resposta
+// pra inspecao manual. Protegido por JWT pra nao expor diagnostico em producao
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class DebugController : ControllerBase
 {
@@ -22,12 +20,9 @@ public class DebugController : ControllerBase
     }
 
     // GET api/debug/ords
-    // Faz um GET em /fiapconnect/usuario/RM560384 usando o IOracleClient configurado
-    // e devolve o status HTTP, os headers de resposta e o body bruto do ORDS.
-    // Isso permite confirmar se os 9 headers estao sendo aceitos pelo WAF Akamai
-    // quando a requisicao parte do IP do Railway.
+    // Bate em /fiapconnect/usuario/RM560384 e devolve a resposta crua do ORDS.
+    // Util pra confirmar que o proxy esta funcional e que o ORDS esta acessivel
     [HttpGet("ords")]
-    [AllowAnonymous]
     public async Task<IActionResult> TestarOrds()
     {
         HttpResponseMessage response;
@@ -48,8 +43,6 @@ public class DebugController : ControllerBase
 
         var body = await response.Content.ReadAsStringAsync();
 
-        // Coleta todos os headers de resposta (response headers + content headers)
-        // para inspecao completa do que o ORDS / WAF devolveu
         var headersResposta = response.Headers
             .Concat(response.Content.Headers)
             .ToDictionary(
