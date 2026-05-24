@@ -83,6 +83,99 @@ public class ConversasControllerTests : IDisposable
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task EnviarMensagem_UsandoIdConversaLogicoNoPath_Retorna200()
+    {
+        // Arrange
+        // Cria a conversa para ter um IdConversa valido. O service tem idempotencia,
+        // entao mesmo que rode varias vezes seguidas continua valido
+        var criarRequest = new CriarConversaRequest
+        {
+            Participantes = new List<string> { "RM560384", "RM111111" },
+            ContextoGrupoId = 999
+        };
+        var criarResponse = await _client.PostAsJsonAsync("/api/conversas", criarRequest);
+        criarResponse.StatusCode.Should().BeOneOf(HttpStatusCode.Created, HttpStatusCode.OK);
+        var conversaCriada = await criarResponse.Content.ReadFromJsonAsync<ConversaResponse>();
+        conversaCriada.Should().NotBeNull();
+
+        // Usa o IdConversa logico (RM111111_RM560384) no path, nao o ObjectId
+        var idConversaLogico = conversaCriada!.IdConversa;
+        var enviarRequest = new EnviarMensagemRequest
+        {
+            RemetenteRm = "RM560384",
+            Texto = "Mensagem de teste de integracao"
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/conversas/{idConversaLogico}/mensagens",
+            enviarRequest);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        if (!string.IsNullOrEmpty(conversaCriada.Id))
+        {
+            _idsParaLimpar.Add(conversaCriada.Id);
+        }
+    }
+
+    [Fact]
+    public async Task ObterPorId_UsandoIdConversaLogicoNoPath_Retorna200()
+    {
+        // Arrange
+        var criarRequest = new CriarConversaRequest
+        {
+            Participantes = new List<string> { "RM560384", "RM111111" },
+            ContextoGrupoId = 999
+        };
+        var criarResponse = await _client.PostAsJsonAsync("/api/conversas", criarRequest);
+        var conversaCriada = await criarResponse.Content.ReadFromJsonAsync<ConversaResponse>();
+        conversaCriada.Should().NotBeNull();
+
+        var idConversaLogico = conversaCriada!.IdConversa;
+
+        // Act
+        var response = await _client.GetAsync($"/api/conversas/{idConversaLogico}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        if (!string.IsNullOrEmpty(conversaCriada.Id))
+        {
+            _idsParaLimpar.Add(conversaCriada.Id);
+        }
+    }
+
+    [Fact]
+    public async Task ObterPorId_UsandoObjectIdNoPath_ContinuaRetornando200()
+    {
+        // Arrange
+        // Garantia de nao regressao: o caminho antigo com ObjectId hex
+        // continua funcionando apos o fix da Rodada 7.F
+        var criarRequest = new CriarConversaRequest
+        {
+            Participantes = new List<string> { "RM560384", "RM111111" },
+            ContextoGrupoId = 999
+        };
+        var criarResponse = await _client.PostAsJsonAsync("/api/conversas", criarRequest);
+        var conversaCriada = await criarResponse.Content.ReadFromJsonAsync<ConversaResponse>();
+        conversaCriada.Should().NotBeNull();
+        conversaCriada!.Id.Should().NotBeNullOrEmpty();
+
+        // Usa o ObjectId hex no path
+        var objectIdNoPath = conversaCriada.Id!;
+
+        // Act
+        var response = await _client.GetAsync($"/api/conversas/{objectIdNoPath}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        _idsParaLimpar.Add(conversaCriada.Id!);
+    }
+
     public void Dispose()
     {
         // Remove documentos criados nos testes para nao poluir o db de teste
