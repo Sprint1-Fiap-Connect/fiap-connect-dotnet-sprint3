@@ -22,7 +22,9 @@ public class ConversasController : ControllerBase
     public async Task<IActionResult> Criar([FromBody] CriarConversaRequest request)
     {
         var resposta = await _conversaService.CriarAsync(request);
-        return CreatedAtAction(nameof(ObterPorId), new { id = resposta.Id }, resposta);
+        // Created com Location explicito evita problema do CreatedAtAction precisar
+        // ressolver a action por reflection quando o Id pode estar em qualquer formato
+        return Created($"/api/conversas/{resposta.Id}", resposta);
     }
 
     [HttpGet("{id}")]

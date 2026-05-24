@@ -22,7 +22,9 @@ public class NotificacoesController : ControllerBase
     public async Task<IActionResult> Criar([FromBody] CriarNotificacaoRequest request)
     {
         var resposta = await _notificacaoService.CriarAsync(request);
-        return CreatedAtAction(nameof(ObterPorId), new { id = resposta.Id }, resposta);
+        // Created com Location explicito evita problema do CreatedAtAction precisar
+        // resolver a action por reflection quando o Id pode estar em qualquer formato
+        return Created($"/api/notificacoes/{resposta.Id}", resposta);
     }
 
     [HttpGet("{id}")]
