@@ -2,6 +2,7 @@ using FiapConnect.Application.DTOs.HistoricoBusca;
 using FiapConnect.Application.Interfaces;
 using FiapConnect.Domain.Entities;
 using FiapConnect.Domain.Exceptions;
+using FiapConnect.Domain.Helpers;
 using FiapConnect.Domain.Interfaces;
 
 namespace FiapConnect.Application.Services;
@@ -19,18 +20,21 @@ public class HistoricoBuscaService : IHistoricoBuscaService
 
     public async Task<HistoricoBuscaResponse> RegistrarAsync(RegistrarBuscaRequest request)
     {
-        // Valida que o aluno existe no Oracle e captura o NomeAluno como snapshot
-        var aluno = await _oracleClient.ObterUsuarioPorRmAsync(request.RmAluno);
+        var rmAluno = RmHelper.Canonizar(request.RmAluno);
+        if (rmAluno is null)
+            throw new RegraDeNegocioException("RmAluno em formato invalido");
+
+        var aluno = await _oracleClient.ObterUsuarioPorRmAsync(rmAluno);
 
         if (aluno == null)
         {
             throw new RecursoNaoEncontradoException(
-                $"Aluno com RM {request.RmAluno} nao encontrado no Oracle");
+                $"Aluno com RM {rmAluno} nao encontrado no Oracle");
         }
 
         var historico = new HistoricoBusca
         {
-            RmAluno = request.RmAluno,
+            RmAluno = rmAluno,
             NomeAluno = aluno.NomeCompleto,
             Timestamp = DateTime.UtcNow,
             FiltroDisciplina = request.FiltroDisciplina,
@@ -76,7 +80,6 @@ public class HistoricoBuscaService : IHistoricoBuscaService
         await _repository.RemoverAsync(id);
     }
 
-    // Mapeamentos privados entre DTO e Entity dos grupos retornados
     private static GrupoRetornado ParaEntity(GrupoRetornadoDto dto) => new()
     {
         IdGrupo = dto.IdGrupo,

@@ -11,6 +11,8 @@ using FiapConnect.Infrastructure.Mongo.Repositories;
 using FiapConnect.Infrastructure.Oracle;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
 
 namespace FiapConnect.Infrastructure;
 
@@ -20,6 +22,16 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Permite que Dictionary<string, object> seja serializado pelo driver Mongo.
+        // Sem esse registro, qualquer valor nao-null no dicionario causa excecao
+        // de serializacao quando o documento eh inserido ou atualizado
+        if (BsonSerializer.LookupSerializer(typeof(object)) is not ObjectSerializer)
+        {
+            BsonSerializer.RegisterSerializer(
+                typeof(object),
+                new ObjectSerializer(type => true));
+        }
+
         // Mapeamentos Mongo: registrar antes do primeiro acesso ao driver
         ConversaMap.Registrar();
         NotificacaoMap.Registrar();

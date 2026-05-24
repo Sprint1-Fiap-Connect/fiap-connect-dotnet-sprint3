@@ -17,13 +17,13 @@ public class HistoricoBuscaServiceTests
         var repositoryMock = new Mock<IHistoricoBuscaRepository>();
         var oracleMock = new Mock<IOracleClient>();
         oracleMock
-            .Setup(o => o.ObterUsuarioPorRmAsync("999999"))
+            .Setup(o => o.ObterUsuarioPorRmAsync("RM999999"))
             .ReturnsAsync((Usuario?)null);
 
         var service = new HistoricoBuscaService(repositoryMock.Object, oracleMock.Object);
         var request = new RegistrarBuscaRequest
         {
-            RmAluno = "999999",
+            RmAluno = "RM999999",
             FiltroDisciplina = "DOTNET",
             EdicaoChallenge = "ORACLE_2024_2"
         };
@@ -42,8 +42,8 @@ public class HistoricoBuscaServiceTests
         var repositoryMock = new Mock<IHistoricoBuscaRepository>();
         var oracleMock = new Mock<IOracleClient>();
         oracleMock
-            .Setup(o => o.ObterUsuarioPorRmAsync("560384"))
-            .ReturnsAsync(new Usuario { Rm = "560384", NomeCompleto = "Alexis Rondo", EmailInstitucional = "rm560384@fiap.com.br" });
+            .Setup(o => o.ObterUsuarioPorRmAsync("RM560384"))
+            .ReturnsAsync(new Usuario { Rm = "RM560384", NomeCompleto = "Alexis Rondo", EmailInstitucional = "rm560384@fiap.com.br" });
         repositoryMock
             .Setup(r => r.RegistrarAsync(It.IsAny<HistoricoBusca>()))
             .ReturnsAsync((HistoricoBusca h) => h);
@@ -51,7 +51,7 @@ public class HistoricoBuscaServiceTests
         var service = new HistoricoBuscaService(repositoryMock.Object, oracleMock.Object);
         var request = new RegistrarBuscaRequest
         {
-            RmAluno = "560384",
+            RmAluno = "RM560384",
             FiltroDisciplina = "DOTNET",
             EdicaoChallenge = "ORACLE_2024_2"
         };
@@ -70,8 +70,8 @@ public class HistoricoBuscaServiceTests
         var repositoryMock = new Mock<IHistoricoBuscaRepository>();
         var oracleMock = new Mock<IOracleClient>();
         oracleMock
-            .Setup(o => o.ObterUsuarioPorRmAsync("560384"))
-            .ReturnsAsync(new Usuario { Rm = "560384", NomeCompleto = "Alexis", EmailInstitucional = "rm560384@fiap.com.br" });
+            .Setup(o => o.ObterUsuarioPorRmAsync("RM560384"))
+            .ReturnsAsync(new Usuario { Rm = "RM560384", NomeCompleto = "Alexis", EmailInstitucional = "rm560384@fiap.com.br" });
         repositoryMock
             .Setup(r => r.RegistrarAsync(It.IsAny<HistoricoBusca>()))
             .ReturnsAsync((HistoricoBusca h) => h);
@@ -79,7 +79,7 @@ public class HistoricoBuscaServiceTests
         var service = new HistoricoBuscaService(repositoryMock.Object, oracleMock.Object);
         var request = new RegistrarBuscaRequest
         {
-            RmAluno = "560384",
+            RmAluno = "RM560384",
             FiltroDisciplina = "DOTNET",
             EdicaoChallenge = "ORACLE_2024_2",
             GruposRetornados = new List<GrupoRetornadoDto>
@@ -95,6 +95,37 @@ public class HistoricoBuscaServiceTests
 
         // Assert
         repositoryMock.Verify(r => r.RegistrarAsync(It.Is<HistoricoBusca>(h => h.TotalGruposRetornados == 3)), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegistrarAsync_QuandoRmAlunoSemPrefixo_CanonizaParaRmMaiusculo()
+    {
+        // Arrange
+        // Aceita "rm560384" (lowercase) e canoniza pra "RM560384" antes de validar no Oracle
+        var repositoryMock = new Mock<IHistoricoBuscaRepository>();
+        var oracleMock = new Mock<IOracleClient>();
+        oracleMock
+            .Setup(o => o.ObterUsuarioPorRmAsync("RM560384"))
+            .ReturnsAsync(new Usuario { Rm = "RM560384", NomeCompleto = "Alexis", EmailInstitucional = "rm560384@fiap.com.br" });
+        repositoryMock
+            .Setup(r => r.RegistrarAsync(It.IsAny<HistoricoBusca>()))
+            .ReturnsAsync((HistoricoBusca h) => h);
+
+        var service = new HistoricoBuscaService(repositoryMock.Object, oracleMock.Object);
+        var request = new RegistrarBuscaRequest
+        {
+            RmAluno = "rm560384",
+            FiltroDisciplina = "DOTNET",
+            EdicaoChallenge = "ORACLE_2024_2"
+        };
+
+        // Act
+        await service.RegistrarAsync(request);
+
+        // Assert
+        repositoryMock.Verify(
+            r => r.RegistrarAsync(It.Is<HistoricoBusca>(h => h.RmAluno == "RM560384")),
+            Times.Once);
     }
 
     [Fact]

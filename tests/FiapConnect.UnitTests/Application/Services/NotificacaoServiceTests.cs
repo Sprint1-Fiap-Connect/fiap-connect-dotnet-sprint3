@@ -17,13 +17,13 @@ public class NotificacaoServiceTests
         var repositoryMock = new Mock<INotificacaoRepository>();
         var oracleMock = new Mock<IOracleClient>();
         oracleMock
-            .Setup(o => o.ObterUsuarioPorRmAsync("999999"))
+            .Setup(o => o.ObterUsuarioPorRmAsync("RM999999"))
             .ReturnsAsync((Usuario?)null);
 
         var service = new NotificacaoService(repositoryMock.Object, oracleMock.Object);
         var request = new CriarNotificacaoRequest
         {
-            RmDestinatario = "999999",
+            RmDestinatario = "RM999999",
             Tipo = "INFO",
             Titulo = "Teste",
             Mensagem = "Mensagem teste"
@@ -43,8 +43,8 @@ public class NotificacaoServiceTests
         var repositoryMock = new Mock<INotificacaoRepository>();
         var oracleMock = new Mock<IOracleClient>();
         oracleMock
-            .Setup(o => o.ObterUsuarioPorRmAsync("560384"))
-            .ReturnsAsync(new Usuario { Rm = "560384", NomeCompleto = "Alexis", EmailInstitucional = "rm560384@fiap.com.br" });
+            .Setup(o => o.ObterUsuarioPorRmAsync("RM560384"))
+            .ReturnsAsync(new Usuario { Rm = "RM560384", NomeCompleto = "Alexis", EmailInstitucional = "rm560384@fiap.com.br" });
         repositoryMock
             .Setup(r => r.CriarAsync(It.IsAny<Notificacao>()))
             .ReturnsAsync((Notificacao n) => n);
@@ -52,7 +52,7 @@ public class NotificacaoServiceTests
         var service = new NotificacaoService(repositoryMock.Object, oracleMock.Object);
         var request = new CriarNotificacaoRequest
         {
-            RmDestinatario = "560384",
+            RmDestinatario = "RM560384",
             Tipo = "INFO",
             Titulo = "Teste",
             Mensagem = "Mensagem teste",
@@ -74,8 +74,8 @@ public class NotificacaoServiceTests
         var repositoryMock = new Mock<INotificacaoRepository>();
         var oracleMock = new Mock<IOracleClient>();
         oracleMock
-            .Setup(o => o.ObterUsuarioPorRmAsync("560384"))
-            .ReturnsAsync(new Usuario { Rm = "560384", NomeCompleto = "Alexis", EmailInstitucional = "rm560384@fiap.com.br" });
+            .Setup(o => o.ObterUsuarioPorRmAsync("RM560384"))
+            .ReturnsAsync(new Usuario { Rm = "RM560384", NomeCompleto = "Alexis", EmailInstitucional = "rm560384@fiap.com.br" });
         repositoryMock
             .Setup(r => r.CriarAsync(It.IsAny<Notificacao>()))
             .ReturnsAsync((Notificacao n) => n);
@@ -83,7 +83,7 @@ public class NotificacaoServiceTests
         var service = new NotificacaoService(repositoryMock.Object, oracleMock.Object);
         var request = new CriarNotificacaoRequest
         {
-            RmDestinatario = "560384",
+            RmDestinatario = "RM560384",
             Tipo = "INFO",
             Titulo = "Teste",
             Mensagem = "Mensagem teste",
@@ -95,6 +95,38 @@ public class NotificacaoServiceTests
 
         // Assert
         repositoryMock.Verify(r => r.CriarAsync(It.Is<Notificacao>(n => n.Prioridade == "NORMAL")), Times.Once);
+    }
+
+    [Fact]
+    public async Task CriarAsync_QuandoRmDestinatarioSemPrefixo_CanonizaParaRmMaiusculo()
+    {
+        // Arrange
+        // Aceita "560384" (somente digitos) e canoniza pra "RM560384" antes de validar no Oracle
+        var repositoryMock = new Mock<INotificacaoRepository>();
+        var oracleMock = new Mock<IOracleClient>();
+        oracleMock
+            .Setup(o => o.ObterUsuarioPorRmAsync("RM560384"))
+            .ReturnsAsync(new Usuario { Rm = "RM560384", NomeCompleto = "Alexis", EmailInstitucional = "rm560384@fiap.com.br" });
+        repositoryMock
+            .Setup(r => r.CriarAsync(It.IsAny<Notificacao>()))
+            .ReturnsAsync((Notificacao n) => n);
+
+        var service = new NotificacaoService(repositoryMock.Object, oracleMock.Object);
+        var request = new CriarNotificacaoRequest
+        {
+            RmDestinatario = "560384",
+            Tipo = "INFO",
+            Titulo = "Teste",
+            Mensagem = "Mensagem teste"
+        };
+
+        // Act
+        await service.CriarAsync(request);
+
+        // Assert
+        repositoryMock.Verify(
+            r => r.CriarAsync(It.Is<Notificacao>(n => n.RmDestinatario == "RM560384")),
+            Times.Once);
     }
 
     [Fact]

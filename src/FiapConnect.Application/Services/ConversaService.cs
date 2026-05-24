@@ -2,6 +2,7 @@ using FiapConnect.Application.DTOs.Conversa;
 using FiapConnect.Application.Interfaces;
 using FiapConnect.Domain.Entities;
 using FiapConnect.Domain.Exceptions;
+using FiapConnect.Domain.Helpers;
 using FiapConnect.Domain.Interfaces;
 
 namespace FiapConnect.Application.Services;
@@ -25,18 +26,19 @@ public class ConversaService : IConversaService
         if (request.Participantes is null || request.Participantes.Count != 2)
             throw new RegraDeNegocioException("Uma conversa deve ter exatamente 2 participantes");
 
-        var rm1 = request.Participantes[0];
-        var rm2 = request.Participantes[1];
+        var rm1 = RmHelper.Canonizar(request.Participantes[0]);
+        var rm2 = RmHelper.Canonizar(request.Participantes[1]);
+
+        if (rm1 is null || rm2 is null)
+            throw new RegraDeNegocioException("RM em formato invalido");
 
         if (rm1 == rm2)
             throw new RegraDeNegocioException("Os participantes devem ter RMs diferentes");
 
-        // Idempotencia: se ja existe conversa entre os 2 RMs, retorna a existente
         var existente = await _repository.ObterEntreParticipantesAsync(rm1, rm2);
         if (existente != null)
             return MapearParaResponse(existente);
 
-        // Valida que ambos os RMs existem no Oracle (sequencial pra simplicidade)
         var usuario1 = await _oracleClient.ObterUsuarioPorRmAsync(rm1);
         if (usuario1 == null)
             throw new RecursoNaoEncontradoException($"Usuario com RM {rm1} nao encontrado no Oracle");
@@ -45,11 +47,9 @@ public class ConversaService : IConversaService
         if (usuario2 == null)
             throw new RecursoNaoEncontradoException($"Usuario com RM {rm2} nao encontrado no Oracle");
 
-        // IdConversa deterministico ordenando os RMs
-        var participantesOrdenados = request.Participantes.OrderBy(r => r).ToList();
+        var participantesOrdenados = new List<string> { rm1, rm2 }.OrderBy(r => r).ToList();
         var idConversa = string.Join("_", participantesOrdenados);
 
-        // NomesParticipantes na mesma ordem dos Participantes ordenados
         var nomesParticipantes = participantesOrdenados
             .Select(rm => rm == usuario1.Rm ? usuario1.NomeCompleto : usuario2.NomeCompleto)
             .ToList();
@@ -98,13 +98,17 @@ public class ConversaService : IConversaService
         if (string.IsNullOrWhiteSpace(request.Texto))
             throw new RegraDeNegocioException("Texto da mensagem nao pode ser vazio");
 
+        var remetenteRm = RmHelper.Canonizar(request.RemetenteRm);
+        if (remetenteRm is null)
+            throw new RegraDeNegocioException("RemetenteRm em formato invalido");
+
         var conversa = await _repository.ObterPorIdAsync(idConversa);
         if (conversa == null)
             throw new RecursoNaoEncontradoException($"Conversa {idConversa} nao encontrada");
 
-        if (!conversa.Participantes.Contains(request.RemetenteRm))
+        if (!conversa.Participantes.Contains(remetenteRm))
             throw new RegraDeNegocioException(
-                $"RM {request.RemetenteRm} nao eh participante da conversa");
+                $"RM {remetenteRm} nao eh participante da conversa");
 
         if (conversa.StatusConversa != "ATIVA")
             throw new RegraDeNegocioException(
@@ -112,13 +116,12 @@ public class ConversaService : IConversaService
 
         var mensagem = new MensagemItem
         {
-            RemetenteRm = request.RemetenteRm,
+            RemetenteRm = remetenteRm,
             Texto = request.Texto,
             Timestamp = DateTime.UtcNow,
             Lida = false
         };
 
-        // Repository cuida de atualizar TotalMensagens, MensagensNaoLidas e DataUltimaMensagem
         await _repository.AdicionarMensagemAsync(idConversa, mensagem);
 
         return MapearMensagemParaResponse(mensagem, conversa);
@@ -176,7 +179,6 @@ public class ConversaService : IConversaService
         Mensagens = c.Mensagens.Select(m => MapearMensagemParaResponse(m, c)).ToList()
     };
 
-    // NomeRemetente vem do snapshot NomesParticipantes da conversa pai
     private static MensagemResponse MapearMensagemParaResponse(MensagemItem m, Conversa c)
     {
         var indice = c.Participantes.IndexOf(m.RemetenteRm);
