@@ -140,6 +140,57 @@ Cada push na branch `main` dispara o pipeline. Tempo médio de deploy: ~6 min.
 
 ---
 
+## Como testar localmente
+
+A API pode ser baixada e validada localmente para inspeção do código e
+execução dos testes unitários, que rodam sem nenhuma configuração
+externa.
+
+### Pré-requisitos
+
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- Git
+
+### Passos
+
+1. Clone o repositório:
+
+```bash
+   git clone https://github.com/Sprint1-Fiap-Connect/fiap-connect-dotnet-sprint3.git
+   cd fiap-connect-dotnet-sprint3
+```
+
+2. Restaure os pacotes e compile a solução:
+
+```bash
+   dotnet build FiapConnect.sln
+```
+
+   Resultado esperado: build concluído sem erros.
+
+3. Execute os testes unitários:
+
+```bash
+   dotnet test tests/FiapConnect.UnitTests
+```
+
+   Resultado esperado: **30 testes verdes**, cobrindo os 5 services da
+   camada Application (`AuthService`, `ConversaService`, `NotificacaoService`,
+   `HistoricoBuscaService`, `AuditoriaService`). Os testes usam Moq para
+   isolar dependências externas (MongoDB, Firebase, Oracle), portanto não
+   exigem credenciais nem rede.
+
+### Observações
+
+- Os **testes de integração** (em `tests/FiapConnect.IntegrationTests`)
+  exigem credenciais de MongoDB Atlas e Firebase configuradas em
+  `appsettings.Test.json` e não estão incluídos neste fluxo simples.
+- A **API em si** (`dotnet run`) também exige essas credenciais para
+  iniciar. Para experimentar a API funcionando, use a URL pública na
+  seção [Links](#links) — Swagger interativo disponível.
+
+---
+
 ## Links
 
 - **API em produção (HTTPS):** https://44-214-247-152.sslip.io
