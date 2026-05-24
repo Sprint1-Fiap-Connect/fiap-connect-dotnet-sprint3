@@ -1,5 +1,6 @@
 using FiapConnect.Domain.Entities;
 using FiapConnect.Domain.Interfaces;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace FiapConnect.Infrastructure.Mongo.Repositories;
@@ -15,7 +16,7 @@ public class ConversaRepository : IConversaRepository
 
     public async Task<Conversa?> ObterPorIdAsync(string id)
     {
-        var filtro = Builders<Conversa>.Filter.Eq(c => c.Id, id);
+        var filtro = FiltroPorIdOuIdConversa(id);
         return await _colecao.Find(filtro).FirstOrDefaultAsync();
     }
 
@@ -40,7 +41,7 @@ public class ConversaRepository : IConversaRepository
 
     public async Task AdicionarMensagemAsync(string idConversa, MensagemItem mensagem)
     {
-        var filtro = Builders<Conversa>.Filter.Eq(c => c.Id, idConversa);
+        var filtro = FiltroPorIdOuIdConversa(idConversa);
 
         // Push da mensagem no array, incremento dos contadores e atualizacao do timestamp
         var update = Builders<Conversa>.Update
@@ -54,7 +55,7 @@ public class ConversaRepository : IConversaRepository
 
     public async Task MarcarMensagensComoLidasAsync(string idConversa, string rmLeitor)
     {
-        var filtro = Builders<Conversa>.Filter.Eq(c => c.Id, idConversa);
+        var filtro = FiltroPorIdOuIdConversa(idConversa);
 
         // Marca como lidas apenas as mensagens cujo remetente NAO eh o leitor e que ainda nao foram lidas
         var update = Builders<Conversa>.Update
@@ -78,7 +79,19 @@ public class ConversaRepository : IConversaRepository
 
     public async Task RemoverAsync(string id)
     {
-        var filtro = Builders<Conversa>.Filter.Eq(c => c.Id, id);
+        var filtro = FiltroPorIdOuIdConversa(id);
         await _colecao.DeleteOneAsync(filtro);
+    }
+
+    // Aceita tanto o ObjectId do Mongo (string hex de 24 chars) quanto o IdConversa
+    // logico do projeto (formato RMxxxxxx_RMyyyyyy). Permite que o cliente referencie
+    // a conversa pelo identificador que conhece, sem precisar guardar o ObjectId
+    private static FilterDefinition<Conversa> FiltroPorIdOuIdConversa(string id)
+    {
+        if (ObjectId.TryParse(id, out _))
+        {
+            return Builders<Conversa>.Filter.Eq(c => c.Id, id);
+        }
+        return Builders<Conversa>.Filter.Eq(c => c.IdConversa, id);
     }
 }
