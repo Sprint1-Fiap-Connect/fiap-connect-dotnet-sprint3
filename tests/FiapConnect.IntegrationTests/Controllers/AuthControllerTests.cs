@@ -30,7 +30,7 @@ public class AuthControllerTests
         var request = new LoginRequest { IdToken = idTokenReal! };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/Auth/login", request);
+        var response = await _client.PostAsJsonAsync("/api/auth/login", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -47,7 +47,7 @@ public class AuthControllerTests
         var request = new LoginRequest { IdToken = "token-invalido-qualquer" };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/Auth/login", request);
+        var response = await _client.PostAsJsonAsync("/api/auth/login", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -60,7 +60,7 @@ public class AuthControllerTests
         var request = new LoginRequest { IdToken = "" };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/Auth/login", request);
+        var response = await _client.PostAsJsonAsync("/api/auth/login", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
