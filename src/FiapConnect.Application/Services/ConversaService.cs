@@ -102,9 +102,9 @@ public class ConversaService : IConversaService
         if (conversa == null)
             throw new RecursoNaoEncontradoException($"Conversa {idConversa} nao encontrada");
 
-        if (!conversa.Participantes.Contains(request.RmRemetente))
+        if (!conversa.Participantes.Contains(request.RemetenteRm))
             throw new RegraDeNegocioException(
-                $"RM {request.RmRemetente} nao eh participante da conversa");
+                $"RM {request.RemetenteRm} nao eh participante da conversa");
 
         if (conversa.StatusConversa != "ATIVA")
             throw new RegraDeNegocioException(
@@ -112,7 +112,7 @@ public class ConversaService : IConversaService
 
         var mensagem = new MensagemItem
         {
-            RemetenteRm = request.RmRemetente,
+            RemetenteRm = request.RemetenteRm,
             Texto = request.Texto,
             Timestamp = DateTime.UtcNow,
             Lida = false

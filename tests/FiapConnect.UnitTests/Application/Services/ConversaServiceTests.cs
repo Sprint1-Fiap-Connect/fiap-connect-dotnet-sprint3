@@ -161,7 +161,7 @@ public class ConversaServiceTests
     }
 
     [Fact]
-    public async Task EnviarMensagemAsync_QuandoRmRemetenteNaoEhParticipante_LancaRegraDeNegocioException()
+    public async Task EnviarMensagemAsync_QuandoRemetenteRmNaoehParticipante_LancaRegraDeNegocioException()
     {
         // Arrange
         var repositoryMock = new Mock<IConversaRepository>();
@@ -180,7 +180,7 @@ public class ConversaServiceTests
         var service = new ConversaService(repositoryMock.Object, oracleMock.Object);
         var request = new EnviarMensagemRequest
         {
-            RmRemetente = "999999",
+            RemetenteRm = "999999",
             Texto = "Oi"
         };
 
@@ -211,7 +211,7 @@ public class ConversaServiceTests
         var service = new ConversaService(repositoryMock.Object, oracleMock.Object);
         var request = new EnviarMensagemRequest
         {
-            RmRemetente = "560384",
+            RemetenteRm = "560384",
             Texto = "Oi"
         };
 
@@ -231,7 +231,7 @@ public class ConversaServiceTests
         var service = new ConversaService(repositoryMock.Object, oracleMock.Object);
         var request = new EnviarMensagemRequest
         {
-            RmRemetente = "560384",
+            RemetenteRm = "560384",
             Texto = string.Empty
         };
 
@@ -262,7 +262,7 @@ public class ConversaServiceTests
         var service = new ConversaService(repositoryMock.Object, oracleMock.Object);
         var request = new EnviarMensagemRequest
         {
-            RmRemetente = "560384",
+            RemetenteRm = "560384",
             Texto = "Mensagem teste"
         };
 
