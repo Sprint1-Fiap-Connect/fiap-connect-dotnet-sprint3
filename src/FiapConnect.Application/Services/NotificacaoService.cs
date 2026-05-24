@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FiapConnect.Application.DTOs.Notificacao;
 using FiapConnect.Application.Interfaces;
 using FiapConnect.Domain.Entities;
@@ -41,7 +42,7 @@ public class NotificacaoService : INotificacaoService
             DataEnvio = DateTime.UtcNow,
             Lida = false,
             DataLeitura = null,
-            DadosContexto = request.DadosContexto,
+            DadosContexto = NormalizarDadosContexto(request.DadosContexto),
             Prioridade = string.IsNullOrWhiteSpace(request.Prioridade)
                 ? "NORMAL"
                 : request.Prioridade,
@@ -94,6 +95,54 @@ public class NotificacaoService : INotificacaoService
         }
 
         await _repository.RemoverAsync(id);
+    }
+
+    // Quando o ASP.NET deserializa Dictionary<string, object>, os valores chegam
+    // como JsonElement (tipo do System.Text.Json). Esse tipo nao eh suportado
+    // pelo driver Mongo. Esta funcao converte cada valor para o tipo primitivo
+    // equivalente (int, double, string, bool) ou estrutura aninhada (Dictionary, List)
+    // antes de persistir, preservando a forma original do JSON
+    private const int ProfundidadeMaxima = 5;
+
+    private static Dictionary<string, object>? NormalizarDadosContexto(Dictionary<string, object>? entrada)
+    {
+        if (entrada is null) return null;
+
+        var saida = new Dictionary<string, object>(entrada.Count);
+        foreach (var par in entrada)
+        {
+            saida[par.Key] = ExtrairValor(par.Value, profundidade: 0);
+        }
+
+        return saida;
+    }
+
+    private static object ExtrairValor(object valor, int profundidade)
+    {
+        // Protege contra JSON malicioso ou aninhamento excessivo
+        if (profundidade >= ProfundidadeMaxima) return string.Empty;
+
+        if (valor is not JsonElement el) return valor;
+
+        return el.ValueKind switch
+        {
+            JsonValueKind.String => el.GetString() ?? string.Empty,
+            JsonValueKind.Number => el.TryGetInt64(out var i) ? i : el.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => string.Empty,
+
+            JsonValueKind.Object => el.EnumerateObject()
+                .ToDictionary(
+                    prop => prop.Name,
+                    prop => ExtrairValor(prop.Value, profundidade + 1)),
+
+            JsonValueKind.Array => el.EnumerateArray()
+                .Select(item => ExtrairValor(item, profundidade + 1))
+                .ToList(),
+
+            _ => string.Empty
+        };
     }
 
     private static NotificacaoResponse ParaResponse(Notificacao n) => new()
