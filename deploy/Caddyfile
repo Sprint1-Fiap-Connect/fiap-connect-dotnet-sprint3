@@ -1,0 +1,13 @@
+# Caddy auto-provisiona certificado Let's Encrypt via ACME HTTP-01 challenge.
+# DOMAIN vem do .env (ex: 52-1-2-3.sslip.io). Caddy ouve em 80 (challenge + redirect)
+# e 443 (HTTPS), repassa pro fiap-api na rede docker interna.
+{$DOMAIN} {
+    encode gzip
+    reverse_proxy fiap-api:8080 {
+        # Encaminha X-Forwarded-* pro ASP.NET reconhecer HTTPS via load balancer
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+}

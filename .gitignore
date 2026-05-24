@@ -36,6 +36,12 @@ TestResults/
 serviceAccountKey.json
 **/serviceAccountKey.json
 
+# Deploy / AWS secrets e estado local
+deploy/.env
+deploy/.aws-state
+deploy/images/
+*.pem
+
 # Local appsettings com segredos
 appsettings.Development.json
 **/appsettings.Development.json

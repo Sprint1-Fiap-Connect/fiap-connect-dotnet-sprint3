@@ -3,6 +3,7 @@ using FiapConnect.API.HealthChecks;
 using FiapConnect.API.Middlewares;
 using FiapConnect.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -87,7 +88,28 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Forwarded headers: necessario quando a API roda atras de load balancer
+// (Azure App Service, AWS ALB/App Runner, Fly.io, etc). O LB termina TLS e
+// encaminha HTTP interno; sem isso, Request.Scheme/Host ficam errados e
+// HATEOAS gera URLs com host interno do container.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+
+    // Em cloud o LB upstream e desconhecido a priori; limpar as listas
+    // padrao confia em qualquer proxy upstream (o trafego so chega via LB)
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
+
+// IMPORTANTE: UseForwardedHeaders precisa vir ANTES de qualquer middleware
+// que dependa de Request.Scheme / Request.Host (UseHttpsRedirection, HATEOAS, etc)
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 // Swagger habilitado sempre (necessario pra demo em producao no Render)
