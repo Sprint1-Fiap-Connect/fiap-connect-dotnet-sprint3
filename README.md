@@ -42,6 +42,8 @@ e auditoria) que se beneficia de MongoDB.
 ## Visão geral do projeto integrado
 
 O FIAP Connect é composto por quatro componentes que se conectam por HTTP:
+
+```text
             ┌─────────────────────────────────────────────┐
             │                                             │
             │   Mobile (React Native + Expo + TanStack)   │
@@ -51,6 +53,7 @@ O FIAP Connect é composto por quatro componentes que se conectam por HTTP:
               HTTPS REST   │               │   HTTPS REST
                            │               │
                            ▼               ▼
+
    ┌─────────────────────────────┐   ┌──────────────────────────────┐
    │                             │   │                              │
    │   Oracle APEX / ORDS        │   │   API .NET 8 (este repo)     │
@@ -63,25 +66,29 @@ O FIAP Connect é composto por quatro componentes que se conectam por HTTP:
    │                             │   │   • Health Checks            │
    └──────────────┬──────────────┘   └──────┬─────────────────┬─────┘
                   │                         │                 │
-                  │  validação RM           │ MongoDB Driver  │ HTTP via
-                  │  via proxy Python       │                 │ proxy Python
+                  │ validação RM            │ MongoDB Driver  │ HTTP via
+                  │ via proxy Python        │                 │ proxy Python
                   │                         ▼                 │
                   │              ┌────────────────────────┐   │
-                  │              │   MongoDB Atlas        │   │
-                  │              │   • mensagens          │   │
-                  │              │   • notificacoes       │   │
-                  │              │   • historico_buscas   │   │
-                  │              │   • auditoria          │   │
+                  │              │     MongoDB Atlas      │   │
+                  │              │                        │   │
+                  │              │ • mensagens            │   │
+                  │              │ • notificacoes         │   │
+                  │              │ • historico_buscas     │   │
+                  │              │ • auditoria            │   │
                   │              └────────────────────────┘   │
                   │                                           │
                   └────────────────────┬──────────────────────┘
                                        │
                                        ▼
+
                               ┌──────────────────────┐
-                              │   Flask (IoT/GenIA)  │
-                              │   Random Forest      │
-                              │   compatibilidade    │
+                              │   Flask (IoT/GenIA) │
+                              │                      │
+                              │ • Random Forest      │
+                              │ • compatibilidade    │
                               └──────────────────────┘
+```
 
 ### Divisão de responsabilidades
 
